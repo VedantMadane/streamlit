@@ -783,7 +783,7 @@ class LayoutsMixin:
                 key,
                 on_change=None,
                 default_value=None,
-                writes_allowed=False,
+                writes_allowed=True,  # Allow programmatic control via session state
                 enable_check_callback_rules=False,
             )
 
@@ -1012,7 +1012,7 @@ class LayoutsMixin:
                 key,
                 on_change=None,
                 default_value=None,
-                writes_allowed=False,
+                writes_allowed=True,  # Allow programmatic control via session state
                 enable_check_callback_rules=False,
             )
 
