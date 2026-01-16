@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export { default, generateToastOverrides } from "./Toast"
+export { default } from "./Toast"

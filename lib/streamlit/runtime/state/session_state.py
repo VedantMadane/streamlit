@@ -368,16 +368,11 @@ class SessionState:
         _new_widget_state: WStates | None = None,
         _key_id_mapper: KeyIdMapper | None = None,
         query_params: QueryParams | None = None,
-        *,
-        initial_query_string: str = "",
     ) -> None:
         """Initialize SessionState.
 
-        Parameters
-        ----------
-        initial_query_string : str
-            The initial URL query string from the client (without leading "?").
-            Used to initialize widget values from URL query parameters.
+        Note: Query params are populated from the initial BackMsg (rerun_script)
+        via ctx.reset() -> qp.update_initial_query_params(), not at construction time.
         """
         # All the values from previous script runs, squished together to save memory
         self._old_state: dict[str, Any] = _old_state if _old_state is not None else {}
@@ -399,11 +394,9 @@ class SessionState:
         )
 
         # query params are stored in session state because query params will be tied with
-        # widget state at one point.
-        if query_params is not None:
-            self.query_params = query_params
-        else:
-            self.query_params = QueryParams.from_query_string(initial_query_string)
+        # widget state at one point. Initial values come from the first BackMsg's
+        # query_string via ctx.reset() -> qp.update_initial_query_params()
+        self.query_params = query_params if query_params is not None else QueryParams()
 
     def __repr__(self) -> str:
         return util.repr_(self)

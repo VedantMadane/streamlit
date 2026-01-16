@@ -480,61 +480,26 @@ export class WebsocketConnection {
   /**
    * Get the session tokens to use to initialize a WebSocket connection.
    *
-   * This method returns an array containing up to three elements:
+   * This method returns an array containing either one or two elements:
    *   1. The first element contains an auth token to be used in environments
    *      where the parent frame of this app needs to pass down an external
    *      auth token. If no token is provided, a placeholder is used.
    *   2. The second element is the session ID to attempt to reconnect to if
    *      one is available (that is, if this websocket has disconnected and is
-   *      reconnecting). On the initial connection attempt, this is unset.
-   *   3. The third element is the initial URL query string (without leading "?")
-   *      to pass to the backend for initializing widget values from URL params.
+   *      reconnecting). On the initial connection attempt, this is unset and
+   *      the return value of this method is a singleton array.
    */
   private async getSessionTokens(): Promise<Array<string>> {
     const hostAuthToken = await this.args.claimHostAuthToken()
     const xsrfCookie = getCookie("_streamlit_xsrf")
     this.args.resetHostAuthToken()
     const lastSessionId = this.args.getLastSessionId()
-
-    // Get the initial query string (without the leading "?") to pass to backend
-    // This allows widgets with "?" key prefix to initialize with URL values
-    const queryString = window.location.search.replace(/^\?/, "")
-
-    const tokens = [
+    return [
       // NOTE: We have to set the auth token to some arbitrary placeholder if
       // not provided since the empty string is an invalid protocol option.
       hostAuthToken ?? xsrfCookie ?? "PLACEHOLDER_AUTH_TOKEN",
+      ...(lastSessionId ? [lastSessionId] : []),
     ]
-
-    // Only include lastSessionId if we're reconnecting to an existing session
-    if (lastSessionId) {
-      tokens.push(lastSessionId)
-    }
-
-    // Include query string if present, for initializing widget values from URL
-    if (queryString) {
-      // If we need to add query string but didn't add lastSessionId, add a
-      // non-empty placeholder first to maintain the expected token positions
-      // (WebSocket API doesn't allow empty string subprotocols)
-      if (!lastSessionId) {
-        tokens.push("NO_SESSION_ID")
-      }
-
-      // Base64url-encode the query string since WebSocket subprotocols cannot
-      // contain characters like '=' and '&' that are common in query strings.
-      // We use base64url encoding (RFC 4648 §5) with:
-      // - '+' replaced by '-'
-      // - '/' replaced by '_'
-      // - padding '=' stripped
-      // Prefix with "qs." so backend knows this is an encoded query string
-      const encoded = btoa(queryString)
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/, "")
-      tokens.push(`qs.${encoded}`)
-    }
-
-    return tokens
   }
 
   private async connectToWebSocket(): Promise<void> {

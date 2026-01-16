@@ -369,7 +369,6 @@ class Runtime:
         user_info: UserInfoType,
         existing_session_id: str | None = None,
         session_id_override: str | None = None,
-        initial_query_string: str = "",
     ) -> str:
         """Create a new session (or connect to an existing one) and return its unique ID.
 
@@ -396,10 +395,6 @@ class Runtime:
             wants to tie the lifecycle of a Streamlit session to some other session-like
             object that it manages. Only one of existing_session_id and
             session_id_override should be set.
-        initial_query_string
-            The initial URL query string from the client (without leading "?").
-            Used to initialize widget values from URL query parameters for widgets
-            with keys starting with "?".
 
         Returns
         -------
@@ -409,6 +404,9 @@ class Runtime:
         Notes
         -----
         Threading: UNSAFE. Must be called on the eventloop thread.
+
+        Note: Query params are transmitted via ClientState.query_string in the
+        initial BackMsg (rerun_script), not via WebSocket headers or this method.
         """
         if existing_session_id and session_id_override:
             raise RuntimeError(
@@ -425,7 +423,6 @@ class Runtime:
             user_info=user_info,
             existing_session_id=existing_session_id,
             session_id_override=session_id_override,
-            initial_query_string=initial_query_string,
         )
         self._set_state(RuntimeState.ONE_OR_MORE_SESSIONS_CONNECTED)
         self._get_async_objs().has_connection.set()
@@ -438,7 +435,6 @@ class Runtime:
         user_info: UserInfoType,
         existing_session_id: str | None = None,
         session_id_override: str | None = None,
-        initial_query_string: str = "",
     ) -> str:
         """Create a new session (or connect to an existing one) and return its unique ID.
 
@@ -453,7 +449,6 @@ class Runtime:
             user_info=user_info,
             existing_session_id=existing_session_id,
             session_id_override=session_id_override,
-            initial_query_string=initial_query_string,
         )
 
     def close_session(self, session_id: str) -> None:
