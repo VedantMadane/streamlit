@@ -263,7 +263,7 @@ def _build_proto(
 
 def _maybe_raise_selection_mode_warning(selection_mode: SelectionMode) -> None:
     """Check if the selection_mode value is valid or raise exception otherwise."""
-    if selection_mode not in ["single", "multi"]:
+    if selection_mode not in {"single", "multi"}:
         raise StreamlitAPIException(
             "The selection_mode argument must be one of ['single', 'multi']. "
             f"The argument passed was '{selection_mode}'."
@@ -418,7 +418,7 @@ class ButtonGroupMixin:
 
         """
 
-        if options not in ["thumbs", "faces", "stars"]:
+        if options not in {"thumbs", "faces", "stars"}:
             raise StreamlitAPIException(
                 "The options argument to st.feedback must be one of "
                 "['thumbs', 'faces', 'stars']. "
@@ -1087,7 +1087,7 @@ class ButtonGroupMixin:
                 "`selection_mode='single'`."
             )
 
-        if style not in ["borderless", "pills", "segmented_control"]:
+        if style not in {"borderless", "pills", "segmented_control"}:
             raise StreamlitAPIException(
                 "The style argument must be one of ['borderless', 'pills', 'segmented_control']. "
                 f"The argument passed was '{style}'."
