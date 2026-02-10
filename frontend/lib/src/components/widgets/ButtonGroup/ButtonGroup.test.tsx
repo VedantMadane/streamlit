@@ -315,6 +315,45 @@ describe("ButtonGroup widget", () => {
       })
     })
 
+    it("handles per-option disabled state", async () => {
+      const user = userEvent.setup()
+      const disabledOptions = [
+        ButtonGroupProto.Option.create({
+          content: "Option 1",
+          disabled: true,
+        }),
+        ButtonGroupProto.Option.create({
+          content: "Option 2",
+          disabled: false,
+        }),
+      ]
+      const props = getProps({
+        options: disabledOptions,
+        default: [],
+      })
+      vi.spyOn(props.widgetMgr, "setIntArrayValue")
+
+      render(<ButtonGroup {...props} />)
+
+      const buttons = getButtonGroupButtons()
+      expect(buttons[0]).toBeDisabled()
+      expect(buttons[1]).not.toBeDisabled()
+
+      // Click disabled option
+      await user.click(buttons[0])
+      expect(props.widgetMgr.setIntArrayValue).toHaveBeenCalledTimes(1) // Only initial call
+
+      // Click enabled option
+      await user.click(buttons[1])
+      expect(props.widgetMgr.setIntArrayValue).toHaveBeenCalledTimes(2) // Initial + click
+      expect(props.widgetMgr.setIntArrayValue).toHaveBeenLastCalledWith(
+        props.element,
+        [1],
+        { fromUi: true },
+        undefined
+      )
+    })
+
     it("sets widget value on update", () => {
       const props = getProps({ value: [3], setValue: true })
       vi.spyOn(props.widgetMgr, "setIntArrayValue")

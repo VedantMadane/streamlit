@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
@@ -219,6 +219,7 @@ def _build_proto(
     formatted_options: Sequence[ButtonGroupProto.Option],
     default_values: list[int],
     disabled: bool,
+    disabled_options: Sequence[bool] | None,
     current_form_id: str,
     click_mode: ButtonGroupProto.ClickMode.ValueType,
     selection_visualization: ButtonGroupProto.SelectionVisualization.ValueType = (
@@ -247,7 +248,9 @@ def _build_proto(
         if help is not None:
             proto.help = help
 
-    for formatted_option in formatted_options:
+    for i, formatted_option in enumerate(formatted_options):
+        if disabled_options and disabled_options[i]:
+            formatted_option.disabled = True
         proto.options.append(formatted_option)
     proto.selection_visualization = selection_visualization
     return proto
@@ -490,7 +493,7 @@ class ButtonGroupMixin:
         on_change: WidgetCallback | None = None,
         args: WidgetArgs | None = None,
         kwargs: WidgetKwargs | None = None,
-        disabled: bool = False,
+        disabled: bool | Iterable[bool] | Iterable[V] = False,
         label_visibility: LabelVisibility = "visible",
         width: Width = "content",
     ) -> V | None: ...
@@ -508,7 +511,7 @@ class ButtonGroupMixin:
         on_change: WidgetCallback | None = None,
         args: WidgetArgs | None = None,
         kwargs: WidgetKwargs | None = None,
-        disabled: bool = False,
+        disabled: bool | Iterable[bool] | Iterable[V] = False,
         label_visibility: LabelVisibility = "visible",
         width: Width = "content",
     ) -> list[V]: ...
@@ -526,7 +529,7 @@ class ButtonGroupMixin:
         on_change: WidgetCallback | None = None,
         args: WidgetArgs | None = None,
         kwargs: WidgetKwargs | None = None,
-        disabled: bool = False,
+        disabled: bool | Iterable[bool] | Iterable[V] = False,
         label_visibility: LabelVisibility = "visible",
         width: Width = "content",
     ) -> list[V] | V | None:
@@ -611,8 +614,11 @@ class ButtonGroupMixin:
         kwargs : dict
             An optional dict of kwargs to pass to the callback.
 
-        disabled : bool
-            An optional boolean that disables the widget if set to ``True``.
+        disabled : bool or Iterable of bool or Iterable of V
+            An optional boolean or Iterable that disables the widget or individual
+            options. If ``True``, the entire widget is disabled. If a list of
+            booleans, each option at the corresponding index is disabled.
+            If a list of option values, those specific options are disabled.
             The default is ``False``.
 
         label_visibility : "visible", "hidden", or "collapsed"
@@ -718,7 +724,7 @@ class ButtonGroupMixin:
         on_change: WidgetCallback | None = None,
         args: WidgetArgs | None = None,
         kwargs: WidgetKwargs | None = None,
-        disabled: bool = False,
+        disabled: bool | Iterable[bool] | Iterable[V] = False,
         label_visibility: LabelVisibility = "visible",
         width: Width = "content",
     ) -> V | None: ...
@@ -736,7 +742,7 @@ class ButtonGroupMixin:
         on_change: WidgetCallback | None = None,
         args: WidgetArgs | None = None,
         kwargs: WidgetKwargs | None = None,
-        disabled: bool = False,
+        disabled: bool | Iterable[bool] | Iterable[V] = False,
         label_visibility: LabelVisibility = "visible",
         width: Width = "content",
     ) -> list[V]: ...
@@ -755,7 +761,7 @@ class ButtonGroupMixin:
         on_change: WidgetCallback | None = None,
         args: WidgetArgs | None = None,
         kwargs: WidgetKwargs | None = None,
-        disabled: bool = False,
+        disabled: bool | Iterable[bool] | Iterable[V] = False,
         label_visibility: LabelVisibility = "visible",
         width: Width = "content",
     ) -> list[V] | V | None:
@@ -839,8 +845,11 @@ class ButtonGroupMixin:
         kwargs : dict
             An optional dict of kwargs to pass to the callback.
 
-        disabled : bool
-            An optional boolean that disables the widget if set to ``True``.
+        disabled : bool or Iterable of bool or Iterable of V
+            An optional boolean or Iterable that disables the widget or individual
+            options. If ``True``, the entire widget is disabled. If a list of
+            booleans, each option at the corresponding index is disabled.
+            If a list of option values, those specific options are disabled.
             The default is ``False``.
 
         label_visibility : "visible", "hidden", or "collapsed"
@@ -944,7 +953,7 @@ class ButtonGroupMixin:
         key: Key | None = None,
         default: Sequence[V] | V | None = None,
         selection_mode: Literal["single", "multi"] = "single",
-        disabled: bool = False,
+        disabled: bool | Iterable[bool] | Iterable[V] = False,
         format_func: Callable[[Any], str] | None = None,
         style: Literal["pills", "segmented_control"] = "segmented_control",
         on_change: WidgetCallback | None = None,
@@ -987,6 +996,72 @@ class ButtonGroupMixin:
         indexable_options = convert_to_sequence_and_check_comparable(options)
         default_values = get_default_indices(indexable_options, default)
 
+        widget_disabled = False
+        disabled_options: Sequence[bool] | None = None
+
+        if isinstance(disabled, bool):
+            widget_disabled = disabled
+        else:
+             # Normalize disabled to list if iterable
+            if isinstance(disabled, Iterable):
+                 disabled_list = list(disabled)
+            else:
+                 disabled_list = []
+
+            if not disabled_list:
+                # Empty sequence does not disable anything
+                pass
+            else:
+                is_bool_mask = False
+                all_disabled_are_bools = all(isinstance(x, bool) for x in disabled_list)
+
+                # Case 1: All bools and length matches options.
+                if len(disabled_list) == len(indexable_options) and all_disabled_are_bools:
+                    is_bool_mask = True
+                elif all_disabled_are_bools:
+                    # Length mismatch.
+                    # If options contain bools, we MUST treat this as values to support disabling specific bool options.
+                    # If options do NOT contain bools, then this is likely a malformed mask.
+                    options_contain_bools = any(
+                        isinstance(x, bool) for x in indexable_options
+                    )
+                    if not options_contain_bools:
+                        raise StreamlitAPIException(
+                            f"The `disabled` argument must have the same length as `options`. "
+                            f"Got {len(disabled_list)} disabled values for {len(indexable_options)} options."
+                        )
+
+                if is_bool_mask:
+                    disabled_options = cast("list[bool]", disabled_list)
+                    if all(disabled_options):
+                        widget_disabled = True
+                else:
+                    # Treat as values
+                    try:
+                        indices = check_and_convert_to_indices(indexable_options, disabled_list)
+                        disabled_options_mask = [False] * len(indexable_options)
+                        for idx in indices:
+                            disabled_options_mask[idx] = True
+
+                        disabled_options = disabled_options_mask
+
+                        if all(disabled_options):
+                            widget_disabled = True
+                    except StreamlitAPIException as e:
+                        if "default value" in str(e):
+                            raise StreamlitAPIException(
+                                str(e).replace("default value", "disabled value")
+                            ) from e
+                        raise e
+
+        # Check default values are not disabled
+        if disabled_options and not widget_disabled:
+             for idx in default_values:
+                  if disabled_options[idx]:
+                       raise StreamlitAPIException(
+                           f"The default value at index {idx} is disabled."
+                       )
+
         serde: ButtonGroupSerde[V] = ButtonGroupSerde[V](
             indexable_options, default_values, selection_mode
         )
@@ -995,7 +1070,8 @@ class ButtonGroupMixin:
             indexable_options,
             default=default_values,
             selection_mode=selection_mode,
-            disabled=disabled,
+            disabled=widget_disabled,
+            disabled_options=disabled_options,
             format_func=_transformed_format_func,
             key=key,
             help=help,
@@ -1023,6 +1099,7 @@ class ButtonGroupMixin:
         default: list[int] | None = None,
         selection_mode: SelectionMode = "single",
         disabled: bool = False,
+        disabled_options: Sequence[bool] | None = None,
         style: Literal[
             "borderless", "pills", "segmented_control"
         ] = "segmented_control",
@@ -1114,6 +1191,7 @@ class ButtonGroupMixin:
             formatted_options,
             default or [],
             disabled,
+            disabled_options,
             form_id,
             click_mode=parsed_selection_mode,
             selection_visualization=selection_visualization,

@@ -1229,3 +1229,101 @@ class ButtonGroupCommandTests(DeltaGeneratorTestCase):
             proto2 = self.get_delta_from_queue().new_element.button_group
             id2 = proto2.id
             assert id1 != id2
+
+
+class TestDisabledOptions(DeltaGeneratorTestCase):
+    @parameterized.expand(
+        [
+            (st.pills, ["a", "b", "c"], [True, False, False], [True, False, False]),
+            (st.segmented_control, ["a", "b", "c"], [False, True, False], [False, True, False]),
+            (st.pills, ["a", "b", "c"], ["a"], [True, False, False]),
+            (st.pills, ["a", "b", "c"], ["b", "c"], [False, True, True]),
+            # Mixed bool/values
+            (st.pills, [True, False], [True], [True, False]), # Ambiguous case, treated as value because length mismatch
+            (st.pills, [True, False, True], [True, False, False], [True, False, False]), # Boolean mask
+            (st.pills, [True, False], [True, False], [True, False]), # Boolean mask
+            (st.pills, [True, False, "foo"], [True, False, False], [True, False, False]), # Boolean mask
+            (st.pills, [1, 2, 3], [1], [True, False, False]),
+        ]
+    )
+    def test_disabled_options(
+        self,
+        command: Callable,
+        options: list[Any],
+        disabled: list[Any],
+        expected_disabled_status: list[bool],
+    ):
+        """Test disabled parameter with various inputs."""
+        command("label", options, disabled=disabled)
+        delta = self.get_delta_from_queue().new_element.button_group
+        assert delta.disabled is False
+        assert [option.disabled for option in delta.options] == expected_disabled_status
+
+    def test_disabled_all_true(self):
+        """Test that if all options are disabled via list, the widget is disabled."""
+        st.pills("label", ["a", "b"], disabled=[True, True])
+        delta = self.get_delta_from_queue().new_element.button_group
+        assert delta.disabled is True
+        assert [option.disabled for option in delta.options] == [True, True]
+
+    def test_disabled_values_all(self):
+        """Test that if all options are disabled via values, the widget is disabled."""
+        st.pills("label", ["a", "b"], disabled=["a", "b"])
+        delta = self.get_delta_from_queue().new_element.button_group
+        assert delta.disabled is True
+        assert [option.disabled for option in delta.options] == [True, True]
+
+    def test_disabled_iterable(self):
+        """Test that disabled accepts other iterables."""
+        st.pills("label", ["a", "b"], disabled={"a"}, key="set")  # Set
+        delta = self.get_delta_from_queue().new_element.button_group
+        assert [option.disabled for option in delta.options] == [True, False]
+
+        st.pills("label", ["a", "b"], disabled=(x for x in ["b"]), key="gen")  # Generator
+        delta = self.get_delta_from_queue().new_element.button_group
+        assert [option.disabled for option in delta.options] == [False, True]
+
+    def test_invalid_disabled_length(self):
+        """Test exception when boolean mask length does not match options."""
+        with pytest.raises(StreamlitAPIException) as e:
+            st.pills("label", ["a", "b"], disabled=[True])
+        assert "The `disabled` argument must have the same length as `options`" in str(
+            e.value
+        )
+
+    def test_invalid_disabled_value(self):
+        """Test exception when disabled value is not in options."""
+        with pytest.raises(StreamlitAPIException) as e:
+            st.pills("label", ["a", "b"], disabled=["c"])
+        # Should contain "disabled value" in error message (replaced from "default value")
+        assert "The disabled value 'c' is not part of the options" in str(e.value)
+
+    def test_default_value_disabled(self):
+        """Test exception when default value is disabled."""
+        with pytest.raises(StreamlitAPIException) as e:
+            st.pills("label", ["a", "b"], default="a", disabled=["a"])
+        assert "The default value at index 0 is disabled" in str(e.value)
+
+    def test_ambiguous_boolean_options(self):
+        """Test disambiguation when options are booleans."""
+        # Options: [True, False]
+        # Disabled: [True]
+        # This is ambiguous. Is it a boolean mask (length mismatch)? Or disabling value True?
+        # Our logic says: treated as mask ONLY if length matches AND all bools.
+        # Here length does not match. So it should be treated as value.
+        st.pills("label", [True, False], disabled=[True], key="ambiguous_1")
+        delta = self.get_delta_from_queue().new_element.button_group
+        assert [option.disabled for option in delta.options] == [True, False]
+
+        # Options: [True, False]
+        # Disabled: [True, False]
+        # Length matches, all bools. Treated as mask.
+        st.pills("label", [True, False], disabled=[True, False], key="ambiguous_2")
+        delta = self.get_delta_from_queue().new_element.button_group
+        assert [option.disabled for option in delta.options] == [True, False]
+
+        # Options: [True, False]
+        # Disabled: [False, True]
+        st.pills("label", [True, False], disabled=[False, True], key="ambiguous_3")
+        delta = self.get_delta_from_queue().new_element.button_group
+        assert [option.disabled for option in delta.options] == [False, True]
