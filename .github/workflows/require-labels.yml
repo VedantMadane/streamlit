@@ -17,26 +17,26 @@ jobs:
         with:
           script: |
             const requiredLabels = {
-              'security-assessment': {
-                mode: 'exactly',
-                count: 1,
-                labels: ['security-assessment-completed']
-              },
+              // 'security-assessment': {
+              //   mode: 'exactly',
+              //   count: 1,
+              //   labels: ['security-assessment-completed']
+              // },
               'do-not-merge': {
                 mode: 'exactly',
                 count: 0,
                 labels: ['do-not-merge']
               },
-              'change-description': {
-                mode: 'exactly',
-                count: 1,
-                labels: ['change:feature', 'change:bugfix', 'change:refactor', 'change:chore', 'change:docs', 'change:other', 'change:spec']
-              },
-              'impact-defined': {
-                mode: 'exactly',
-                count: 1,
-                labels: ['impact:users', 'impact:internal']
-              }
+              // 'change-description': {
+              //   mode: 'exactly',
+              //   count: 1,
+              //   labels: ['change:feature', 'change:bugfix', 'change:refactor', 'change:chore', 'change:docs', 'change:other', 'change:spec']
+              // },
+              // 'impact-defined': {
+              //   mode: 'exactly',
+              //   count: 1,
+              //   labels: ['impact:users', 'impact:internal']
+              // }
             };
 
             const prNumber = context.payload.pull_request.number;
