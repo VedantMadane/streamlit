@@ -1036,7 +1036,7 @@ class ButtonGroupMixin:
                     # returns a list or raises an exception.
                     if indices is None:
                         # This should never happen.
-                        raise StreamlitAPIException("Invalid disabled options")
+                        raise StreamlitAPIException("Invalid disabled options")  # noqa: TRY301
 
                     disabled_options_mask = [False] * len(indexable_options)
                     for idx in indices:
