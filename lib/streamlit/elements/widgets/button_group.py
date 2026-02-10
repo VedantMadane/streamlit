@@ -1001,63 +1001,57 @@ class ButtonGroupMixin:
 
         if isinstance(disabled, bool):
             widget_disabled = disabled
-        else:
-            # Normalize disabled to list if iterable
-            if isinstance(disabled, Iterable):
-                disabled_list = list(disabled)
-            else:
-                disabled_list = []
+        elif isinstance(disabled, Iterable):
+            disabled_list = list(disabled)
+            is_bool_mask = False
+            all_disabled_are_bools = all(isinstance(x, bool) for x in disabled_list)
 
-            if not disabled_list:
-                # Empty sequence does not disable anything
-                pass
-            else:
-                is_bool_mask = False
-                all_disabled_are_bools = all(isinstance(x, bool) for x in disabled_list)
-
-                # Case 1: All bools and length matches options.
-                if (
-                    len(disabled_list) == len(indexable_options)
-                    and all_disabled_are_bools
-                ):
-                    is_bool_mask = True
-                elif all_disabled_are_bools:
-                    # Length mismatch.
-                    # If options contain bools, we MUST treat this as values to support disabling specific bool options.
-                    # If options do NOT contain bools, then this is likely a malformed mask.
-                    options_contain_bools = any(
-                        isinstance(x, bool) for x in indexable_options
+            # Case 1: All bools and length matches options.
+            if len(disabled_list) == len(indexable_options) and all_disabled_are_bools:
+                is_bool_mask = True
+            elif all_disabled_are_bools:
+                # Length mismatch.
+                # If options contain bools, we MUST treat this as values to support disabling specific bool options.
+                # If options do NOT contain bools, then this is likely a malformed mask.
+                options_contain_bools = any(
+                    isinstance(x, bool) for x in indexable_options
+                )
+                if not options_contain_bools:
+                    raise StreamlitAPIException(
+                        f"The `disabled` argument must have the same length as `options`. "
+                        f"Got {len(disabled_list)} disabled values for {len(indexable_options)} options."
                     )
-                    if not options_contain_bools:
-                        raise StreamlitAPIException(
-                            f"The `disabled` argument must have the same length as `options`. "
-                            f"Got {len(disabled_list)} disabled values for {len(indexable_options)} options."
-                        )
 
-                if is_bool_mask:
-                    disabled_options = cast("list[bool]", disabled_list)
+            if is_bool_mask:
+                disabled_options = cast("list[bool]", disabled_list)
+                if all(disabled_options):
+                    widget_disabled = True
+            else:
+                # Treat as values
+                try:
+                    indices = check_and_convert_to_indices(
+                        indexable_options, disabled_list
+                    )
+                    # indices will not be None here because check_and_convert_to_indices
+                    # returns a list or raises an exception.
+                    if indices is None:
+                        # This should never happen.
+                        raise StreamlitAPIException("Invalid disabled options")
+
+                    disabled_options_mask = [False] * len(indexable_options)
+                    for idx in indices:
+                        disabled_options_mask[idx] = True
+
+                    disabled_options = disabled_options_mask
+
                     if all(disabled_options):
                         widget_disabled = True
-                else:
-                    # Treat as values
-                    try:
-                        indices = check_and_convert_to_indices(
-                            indexable_options, disabled_list
-                        )
-                        disabled_options_mask = [False] * len(indexable_options)
-                        for idx in indices:
-                            disabled_options_mask[idx] = True
-
-                        disabled_options = disabled_options_mask
-
-                        if all(disabled_options):
-                            widget_disabled = True
-                    except StreamlitAPIException as e:
-                        if "default value" in str(e):
-                            raise StreamlitAPIException(
-                                str(e).replace("default value", "disabled value")
-                            ) from e
-                        raise
+                except StreamlitAPIException as e:
+                    if "default value" in str(e):
+                        raise StreamlitAPIException(
+                            str(e).replace("default value", "disabled value")
+                        ) from e
+                    raise
 
         # Check default values are not disabled
         if disabled_options and not widget_disabled:
