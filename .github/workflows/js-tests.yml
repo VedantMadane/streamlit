@@ -156,12 +156,14 @@ jobs:
             });
 
             if (runs.workflow_runs.length === 0) {
-              throw new Error('No successful workflow runs found on develop branch');
+              core.info('No successful workflow runs found on develop branch. Skipping coverage comparison.');
+              core.setOutput('run_id', '');
+            } else {
+              core.setOutput('run_id', runs.workflow_runs[0].id);
             }
 
-            core.setOutput('run_id', runs.workflow_runs[0].id);
-
       - name: Download develop coverage
+        if: steps.get-latest-run.outputs.run_id != ''
         uses: actions/download-artifact@v7
         with:
           repository: streamlit/streamlit
@@ -173,6 +175,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check coverage changes and comment
+        if: steps.get-latest-run.outputs.run_id != ''
         uses: actions/github-script@v8
         with:
           script: |
