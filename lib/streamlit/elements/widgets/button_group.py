@@ -1002,11 +1002,11 @@ class ButtonGroupMixin:
         if isinstance(disabled, bool):
             widget_disabled = disabled
         else:
-             # Normalize disabled to list if iterable
+            # Normalize disabled to list if iterable
             if isinstance(disabled, Iterable):
-                 disabled_list = list(disabled)
+                disabled_list = list(disabled)
             else:
-                 disabled_list = []
+                disabled_list = []
 
             if not disabled_list:
                 # Empty sequence does not disable anything
@@ -1016,7 +1016,10 @@ class ButtonGroupMixin:
                 all_disabled_are_bools = all(isinstance(x, bool) for x in disabled_list)
 
                 # Case 1: All bools and length matches options.
-                if len(disabled_list) == len(indexable_options) and all_disabled_are_bools:
+                if (
+                    len(disabled_list) == len(indexable_options)
+                    and all_disabled_are_bools
+                ):
                     is_bool_mask = True
                 elif all_disabled_are_bools:
                     # Length mismatch.
@@ -1038,7 +1041,9 @@ class ButtonGroupMixin:
                 else:
                     # Treat as values
                     try:
-                        indices = check_and_convert_to_indices(indexable_options, disabled_list)
+                        indices = check_and_convert_to_indices(
+                            indexable_options, disabled_list
+                        )
                         disabled_options_mask = [False] * len(indexable_options)
                         for idx in indices:
                             disabled_options_mask[idx] = True
@@ -1052,15 +1057,15 @@ class ButtonGroupMixin:
                             raise StreamlitAPIException(
                                 str(e).replace("default value", "disabled value")
                             ) from e
-                        raise e
+                        raise
 
         # Check default values are not disabled
         if disabled_options and not widget_disabled:
-             for idx in default_values:
-                  if disabled_options[idx]:
-                       raise StreamlitAPIException(
-                           f"The default value at index {idx} is disabled."
-                       )
+            for idx in default_values:
+                if disabled_options[idx]:
+                    raise StreamlitAPIException(
+                        f"The default value at index {idx} is disabled."
+                    )
 
         serde: ButtonGroupSerde[V] = ButtonGroupSerde[V](
             indexable_options, default_values, selection_mode

@@ -1235,14 +1235,43 @@ class TestDisabledOptions(DeltaGeneratorTestCase):
     @parameterized.expand(
         [
             (st.pills, ["a", "b", "c"], [True, False, False], [True, False, False]),
-            (st.segmented_control, ["a", "b", "c"], [False, True, False], [False, True, False]),
+            (
+                st.segmented_control,
+                ["a", "b", "c"],
+                [False, True, False],
+                [False, True, False],
+            ),
             (st.pills, ["a", "b", "c"], ["a"], [True, False, False]),
             (st.pills, ["a", "b", "c"], ["b", "c"], [False, True, True]),
             # Mixed bool/values
-            (st.pills, [True, False], [True], [True, False]), # Ambiguous case, treated as value because length mismatch
-            (st.pills, [True, False, True], [True, False, False], [True, False, False]), # Boolean mask
-            (st.pills, [True, False], [True, False], [True, False]), # Boolean mask
-            (st.pills, [True, False, "foo"], [True, False, False], [True, False, False]), # Boolean mask
+            # Ambiguous case, treated as value because length mismatch
+            (
+                st.pills,
+                [True, False],
+                [True],
+                [True, False],
+            ),
+            # Boolean mask
+            (
+                st.pills,
+                [True, False, True],
+                [True, False, False],
+                [True, False, False],
+            ),
+            # Boolean mask
+            (
+                st.pills,
+                [True, False],
+                [True, False],
+                [True, False],
+            ),
+            # Boolean mask
+            (
+                st.pills,
+                [True, False, "foo"],
+                [True, False, False],
+                [True, False, False],
+            ),
             (st.pills, [1, 2, 3], [1], [True, False, False]),
         ]
     )
@@ -1279,7 +1308,9 @@ class TestDisabledOptions(DeltaGeneratorTestCase):
         delta = self.get_delta_from_queue().new_element.button_group
         assert [option.disabled for option in delta.options] == [True, False]
 
-        st.pills("label", ["a", "b"], disabled=(x for x in ["b"]), key="gen")  # Generator
+        st.pills(
+            "label", ["a", "b"], disabled=(x for x in ["b"]), key="gen"
+        )  # Generator
         delta = self.get_delta_from_queue().new_element.button_group
         assert [option.disabled for option in delta.options] == [False, True]
 
@@ -1306,8 +1337,7 @@ class TestDisabledOptions(DeltaGeneratorTestCase):
 
     def test_ambiguous_boolean_options(self):
         """Test disambiguation when options are booleans."""
-        # Options: [True, False]
-        # Disabled: [True]
+        # Case 1: options=[True, False], disabled=[True]
         # This is ambiguous. Is it a boolean mask (length mismatch)? Or disabling value True?
         # Our logic says: treated as mask ONLY if length matches AND all bools.
         # Here length does not match. So it should be treated as value.
@@ -1315,15 +1345,13 @@ class TestDisabledOptions(DeltaGeneratorTestCase):
         delta = self.get_delta_from_queue().new_element.button_group
         assert [option.disabled for option in delta.options] == [True, False]
 
-        # Options: [True, False]
-        # Disabled: [True, False]
+        # Case 2: options=[True, False], disabled=[True, False]
         # Length matches, all bools. Treated as mask.
         st.pills("label", [True, False], disabled=[True, False], key="ambiguous_2")
         delta = self.get_delta_from_queue().new_element.button_group
         assert [option.disabled for option in delta.options] == [True, False]
 
-        # Options: [True, False]
-        # Disabled: [False, True]
+        # Case 3: options=[True, False], disabled=[False, True]
         st.pills("label", [True, False], disabled=[False, True], key="ambiguous_3")
         delta = self.get_delta_from_queue().new_element.button_group
         assert [option.disabled for option in delta.options] == [False, True]
